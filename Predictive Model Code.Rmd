@@ -1,0 +1,322 @@
+---
+title: "Huang, Yi"
+author: "Huang, Yi"
+output: html_document
+---
+# load the data
+cardData <- read.csv('Data 9.csv')
+# understand the data and their basic relationships
+names(cardData)
+summary(cardData)
+library(corrplot)
+corrplot(cor(cardData))
+corrplot(cor(cardData),method='shade')
+summary(lm(card~., data=cardData))
+# further to see some nonlinear relationships
+library('earth')
+plotmo(earth(card~., data=cardData))
+plotmo(earth(card~.,data=cardData,degree=2))
+
+```{1A}
+#TRAIN AND ESTIMATE the FIRST MODEL (WITHOUT EXPENDITURE) HERE
+
+cardData <- read.csv('Data 9.csv')
+cardData1 <- subset(cardData, select = -expenditure)
+
+#train the model
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData1)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData1 = subset(cardData1, valNum!= fold)
+  validationData1 = subset(cardData1, valNum == fold)
+  model1 = lm(card~., data = trainingData1)
+  model2 = lm(card~.^2, data = trainingData1) # 3.746207e-01 best among these
+  model3 = lm(card~.^3, data = trainingData1)
+  model4 = lm(card~.^4, data = trainingData1)
+  model5 = lm(card~.^5, data = trainingData1)
+  valid1 = mean((validationData1$card - predict(model1,validationData1))^2)^.5
+  valid2 = mean((validationData1$card - predict(model2,validationData1))^2)^.5
+  valid3 = mean((validationData1$card - predict(model3,validationData1))^2)^.5
+  valid4 = mean((validationData1$card - predict(model4,validationData1))^2)^.5
+  valid5 = mean((validationData1$card - predict(model5,validationData1))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance) 
+
+# maybe some variables can be removed
+anova(lm(card~., data = trainingData1))
+# try remove months/age/dependents
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData1)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData1 = subset(cardData1, valNum!= fold)
+  validationData1 = subset(cardData1, valNum == fold)
+  model1 = lm(card~.-months, data = trainingData1)
+  model2 = lm(card~(.-months)^2, data = trainingData1) # 0.3744980 best till now
+  model3 = lm(card~(.-months)^3, data = trainingData1)
+  model4 = lm(card~(.-months)^4, data = trainingData1) 
+  model5 = lm(card~.-(months + age), data = trainingData1)
+  valid1 = mean((validationData1$card - predict(model1,validationData1))^2)^.5
+  valid2 = mean((validationData1$card - predict(model2,validationData1))^2)^.5
+  valid3 = mean((validationData1$card - predict(model3,validationData1))^2)^.5
+  valid4 = mean((validationData1$card - predict(model4,validationData1))^2)^.5
+  valid5 = mean((validationData1$card - predict(model5,validationData1))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance)
+
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData1)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData1 = subset(cardData1, valNum!= fold)
+  validationData1 = subset(cardData1, valNum == fold)
+  model1 = lm(card~(.-(months + age))^2, data = trainingData1) # 0.3742541 best till now
+  model2 = lm(card~(.-(months + age))^3, data = trainingData1)
+  model3 = lm(card~(.-(months + age))^4, data = trainingData1)
+  model4 = lm(card~.-(months + age + dependents), data = trainingData1) 
+  model5 = lm(card~(.-(months + age + dependents))^2, data = trainingData1)
+  valid1 = mean((validationData1$card - predict(model1,validationData1))^2)^.5
+  valid2 = mean((validationData1$card - predict(model2,validationData1))^2)^.5
+  valid3 = mean((validationData1$card - predict(model3,validationData1))^2)^.5
+  valid4 = mean((validationData1$card - predict(model4,validationData1))^2)^.5
+  valid5 = mean((validationData1$card - predict(model5,validationData1))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance)
+
+# use the MARS model
+library('earth')
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData1)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData1 = subset(cardData1, valNum!= fold)
+  validationData1 = subset(cardData1, valNum == fold)
+  model1 = earth(card~.,data=trainingData1) 
+  model2 = earth(card~.-(months + age),data=trainingData1)
+  model3 = earth(card~., degree = 2, data=trainingData1)  # 0.3139557 best till now
+  model4 = earth(card~., degree = 3, data=trainingData1)
+  model5 = earth(card~., degree = 4, data=trainingData1)
+  valid1 = mean((validationData1$card - predict(model1,validationData1))^2)^.5
+  valid2 = mean((validationData1$card - predict(model2,validationData1))^2)^.5
+  valid3 = mean((validationData1$card - predict(model3,validationData1))^2)^.5
+  valid4 = mean((validationData1$card - predict(model4,validationData1))^2)^.5
+  valid5 = mean((validationData1$card - predict(model5,validationData1))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance)
+
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData1)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData1 = subset(cardData1, valNum!= fold)
+  validationData1 = subset(cardData1, valNum == fold)
+  model1 = earth(card~., degree = 3, data=trainingData1, thresh=0) 
+  model2 = earth(card~., degree = 3, data=trainingData1, thresh=.1)
+  model3 = earth(card~., degree = 3, data=trainingData1, thresh=.001)  
+  model4 = earth(card~., degree = 3, data=trainingData1, thresh=.0001)
+  model5 = earth(card~., degree = 3, data=trainingData1, thresh=.00001)
+  valid1 = mean((validationData1$card - predict(model1,validationData1))^2)^.5
+  valid2 = mean((validationData1$card - predict(model2,validationData1))^2)^.5
+  valid3 = mean((validationData1$card - predict(model3,validationData1))^2)^.5
+  valid4 = mean((validationData1$card - predict(model4,validationData1))^2)^.5
+  valid5 = mean((validationData1$card - predict(model5,validationData1))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance) # no improvement
+
+chosenModel = earth(card~., degree = 2, data = cardData1)
+```
+
+
+```{1B}
+#TRAIN AND ESTIMATE the SECOND MODEL (WITH EXPENDITURES) HERE
+#train the model
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData = subset(cardData, valNum!= fold)
+  validationData = subset(cardData, valNum == fold)
+  model1 = lm(card~., data = trainingData)  
+  model2 = lm(card~.^2, data = trainingData)  # 0.3619949 best among these
+  model3 = lm(card~.^3, data = trainingData)
+  model4 = lm(card~.^4, data = trainingData)
+  model5 = lm(card~.^5, data = trainingData)
+  valid1 = mean((validationData$card - predict(model1,validationData))^2)^.5
+  valid2 = mean((validationData$card - predict(model2,validationData))^2)^.5
+  valid3 = mean((validationData$card - predict(model3,validationData))^2)^.5
+  valid4 = mean((validationData$card - predict(model4,validationData))^2)^.5
+  valid5 = mean((validationData$card - predict(model5,validationData))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance) 
+
+# maybe some variables can be removed
+anova(lm(card~., data = trainingData))
+# try remove months/age/dependents
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData = subset(cardData, valNum!= fold)
+  validationData = subset(cardData, valNum == fold)
+  model1 = lm(card~.-months, data = trainingData)    
+  model2 = lm(card~(.-months)^2, data = trainingData) # 0.3620185 best till now
+  model3 = lm(card~(.-months)^3, data = trainingData)
+  model4 = lm(card~(.-months)^4, data = trainingData) 
+  model5 = lm(card~.-(months + age), data = trainingData)  
+  valid1 = mean((validationData$card - predict(model1,validationData))^2)^.5
+  valid2 = mean((validationData$card - predict(model2,validationData))^2)^.5
+  valid3 = mean((validationData$card - predict(model3,validationData))^2)^.5
+  valid4 = mean((validationData$card - predict(model4,validationData))^2)^.5
+  valid5 = mean((validationData$card - predict(model5,validationData))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance)
+
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData)) * nFold)+1
+modelPerformance = matrix(NA,nFold,6)
+for(fold in 1:nFold){
+  trainingData = subset(cardData, valNum!= fold)
+  validationData = subset(cardData, valNum == fold)
+  model1 = lm(card~(.-(months + age))^2, data = trainingData) 
+  model2 = lm(card~(.-(months + age))^3, data = trainingData)
+  model3 = lm(card~(.-(months + age))^4, data = trainingData)
+  model4 = lm(card~.-(months + age + dependents), data = trainingData) 
+  model5 = lm(card~(.-(months + age + dependents))^2, data = trainingData) # 0.3617507 best till now
+  model6 = lm(card~(.-(months + age + dependents))^3, data = trainingData)
+  valid1 = mean((validationData$card - predict(model1,validationData))^2)^.5
+  valid2 = mean((validationData$card - predict(model2,validationData))^2)^.5
+  valid3 = mean((validationData$card - predict(model3,validationData))^2)^.5
+  valid4 = mean((validationData$card - predict(model4,validationData))^2)^.5
+  valid5 = mean((validationData$card - predict(model5,validationData))^2)^.5
+  valid6 = mean((validationData$card - predict(model6,validationData))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5, valid6)
+}
+colMeans(modelPerformance)
+
+# use the MARS model
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData)) * nFold)+1
+modelPerformance = matrix(NA, nFold, 6)
+for(fold in 1:nFold){
+  trainingData = subset(cardData, valNum!= fold)
+  validationData = subset(cardData, valNum == fold)
+  model1 = earth(card~.,data=trainingData) 
+  model2 = earth(card~.-(months + age),data=trainingData)
+  model3 = earth(card~.-(months + age + dependents), degree = 2,data=trainingData)
+  model4 = earth(card~., degree = 2, data=trainingData)  
+  model5 = earth(card~., degree = 3, data=trainingData)  
+  model6 = earth(card~., degree = 4, data=trainingData)  # 0.2487848 best till now
+  valid1 = mean((validationData$card - predict(model1,validationData))^2)^.5
+  valid2 = mean((validationData$card - predict(model2,validationData))^2)^.5
+  valid3 = mean((validationData$card - predict(model3,validationData))^2)^.5
+  valid4 = mean((validationData$card - predict(model4,validationData))^2)^.5
+  valid5 = mean((validationData$card - predict(model5,validationData))^2)^.5
+  valid6 = mean((validationData$card - predict(model6,validationData))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5, valid6)
+}
+colMeans(modelPerformance)
+
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData)) * nFold)+1
+modelPerformance = matrix(NA,nFold,5)
+for(fold in 1:nFold){
+  trainingData = subset(cardData, valNum!= fold)
+  validationData = subset(cardData, valNum == fold)
+  model1 = earth(card~., degree = 5, data=trainingData)
+  model2 = earth(card~., degree = 4, data=trainingData, thresh=0.1) 
+  model3 = earth(card~., degree = 4, data=trainingData, thresh=0.01) 
+  model4 = earth(card~., degree = 4, data=trainingData, thresh=0.001) 
+  model5 = earth(card~., degree = 4, data=trainingData, thresh=0.0001) 
+  valid1 = mean((validationData$card - predict(model1,validationData))^2)^.5
+  valid2 = mean((validationData$card - predict(model2,validationData))^2)^.5
+  valid3 = mean((validationData$card - predict(model3,validationData))^2)^.5
+  valid4 = mean((validationData$card - predict(model4,validationData))^2)^.5
+  valid5 = mean((validationData$card - predict(model5,validationData))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5)
+}
+colMeans(modelPerformance) # no improvement
+
+library('earth')
+plotmo(earth(card~., data=cardData))
+plotmo(earth(card~.,data=cardData,degree=2))
+
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData)) * nFold)+1
+modelPerformance = matrix(NA,nFold,6)
+for(fold in 1:nFold){
+  trainingData = subset(cardData, valNum!= fold)
+  validationData = subset(cardData, valNum == fold)
+  model1 = lm(card ~ reports+share+expenditure+active+reports*share+share*expenditure+share*active, data=trainingData)
+  model2 = lm(card ~ (reports+share+expenditure+reports*share+share*expenditure+share*active)^2, data=trainingData) 
+  model3 = earth(card ~ reports+share+expenditure+reports*share+share*expenditure+share*active, data=trainingData) 
+  model4 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 2, data=trainingData) 
+  model5 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=trainingData) # 0.2487429 Best!!!
+  model6 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 4, data=trainingData)
+  valid1 = mean((validationData$card - predict(model1,validationData))^2)^.5
+  valid2 = mean((validationData$card - predict(model2,validationData))^2)^.5
+  valid3 = mean((validationData$card - predict(model3,validationData))^2)^.5
+  valid4 = mean((validationData$card - predict(model4,validationData))^2)^.5
+  valid5 = mean((validationData$card - predict(model5,validationData))^2)^.5
+  valid6 = mean((validationData$card - predict(model6,validationData))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5, valid6)
+}
+colMeans(modelPerformance)
+
+set.seed(562)
+nFold = 10
+valNum = floor(runif(nrow(cardData)) * nFold)+1
+modelPerformance = matrix(NA,nFold,6)
+for(fold in 1:nFold){
+  trainingData = subset(cardData, valNum!= fold)
+  validationData = subset(cardData, valNum == fold)
+  model1 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=trainingData, thresh=0)
+  model2 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=trainingData, thresh=0.1) 
+  model3 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=trainingData, thresh=0.01) 
+  model4 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=trainingData, thresh=0.001)
+  model5 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=trainingData, thresh=0.0001) 
+  model6 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=trainingData, thresh=0.00001)
+  valid1 = mean((validationData$card - predict(model1,validationData))^2)^.5
+  valid2 = mean((validationData$card - predict(model2,validationData))^2)^.5
+  valid3 = mean((validationData$card - predict(model3,validationData))^2)^.5
+  valid4 = mean((validationData$card - predict(model4,validationData))^2)^.5
+  valid5 = mean((validationData$card - predict(model5,validationData))^2)^.5
+  valid6 = mean((validationData$card - predict(model6,validationData))^2)^.5
+  modelPerformance[fold, ] = c(valid1, valid2, valid3, valid4, valid5, valid6)
+}
+colMeans(modelPerformance) # no improvement
+
+chosenModel2 = earth(card~reports+share+expenditure+reports*share+share*expenditure+share*active, degree = 3, data=cardData)
+```
+
+
+```{r}
+#This reduces the file size in some cases fringe cases
+chosenModel$cv.list = NULL
+chosenModel$cv.oof.fit.tab = NULL
+chosenModel$varmod = NULL
+
+chosenModel2$cv.list = NULL
+chosenModel2$cv.oof.fit.tab = NULL
+chosenModel2$varmod = NULL
+
+save(chosenModel, chosenModel2, file = paste0(studentNum,'.Rdata'))
+```
